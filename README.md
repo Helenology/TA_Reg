@@ -1,2 +1,6 @@
 # TA_manual
-Be 200% prepared.
+
+## 1. 课前须知
+
+- PPT更新:
+  - 助教信息
