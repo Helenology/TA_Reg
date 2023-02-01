@@ -1,4 +1,4 @@
-# TA_manual
+# Survival Manual for TA
 
 ## 1. 学期前
 
