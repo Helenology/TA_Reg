@@ -1,0 +1,149 @@
+---
+title: "第2章"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# 【特别注意】
+# mac电脑需要运行下面这行代码
+# windows电脑需要注释掉下面这行代码（在下一行代码的最前面加一个#）
+par(family="STKaiti")
+# 如果mac电脑上面这行代码不成功，可以改成par(family="Hei")试试
+
+#读取数据
+a=read.csv("第2章.csv")
+#查看前五行
+a[1:5,]
+#查看数据的维度，第一个数字表示有多少行，第二个数字表示有多少列
+dim(a)
+
+#------通过hist命令，对二手房价格做直方图------------
+# 将画图页面分成1行2列
+par(mfrow=c(1,2))
+#通过hist命令，对二手房原始价格做直方图
+hist(a$price,xlab="原始价格",ylab = "频数",main=NULL)
+#通过hist命令，对对数变换后的价格做直方图
+hist(log(a$price),xlab="对数价格",ylab = "频数",main=NULL)
+
+#------对唯一的连续型X变量，房屋面积做直方图------
+par(mfrow=c(1,1))
+hist(a$area,xlab="房屋面积（平方米）",ylab = "频数",main=NULL)
+
+# 将price取对数，存在数据框a中，命名为Y （对数变换后的房屋价格）
+a$Y=log(a$price)
+# 查看a的每列的描述性统计量
+summary(a)
+
+#------对其他的离散型X变量，结合Y变量（对数变换后的房屋价格）做描述统计-------
+## 新建一个函数， 函数的输入为变量名，输出为该变量和因变量关系的描述性统计量
+descrb = function(var){
+  # var为要提取的列名
+  Z=a[,var]
+  # 计算变量Z不同取值水平个数
+  N=tapply(a$Y,Z,length)
+  # 计算变量Z不同取值水平对应的Y的均值
+  MU=tapply(a$Y,Z,mean)
+  # 计算变量Z不同取值水平对应的Y的标准差
+  SD=tapply(a$Y,Z,sd)
+  # 计算变量Z不同取值水平对应的Y的最小值
+  MIN=tapply(a$Y,Z,min)
+  # 计算变量Z不同取值水平对应的Y的中位数
+  MED=tapply(a$Y,Z,median)
+  # 计算变量Z不同取值水平对应的Y的最大值
+  MAX=tapply(a$Y,Z,max)
+  # 横向合并上述结果
+  out=cbind(N,MU,SD,MIN,MED,MAX)
+  # 返回结果
+  out
+}
+# 对不同变量依次进行描述性分析
+descrb("district") 
+descrb("bedrooms") 
+descrb("halls") 
+descrb("floor") 
+descrb("subway") 
+descrb("school")
+
+#------对离散型X变量，都分组做Y变量的箱线图（boxplot）------
+# 将画图页面分为3行两列
+par(mfrow=c(3,2))
+# 绘制Y与district箱线图
+boxplot(Y~district,a,ylab="对数价格",xlab="行政区划")
+# 绘制Y与bedrooms箱线图
+boxplot(Y~bedrooms,a,ylab="对数价格",xlab="卧室个数")
+# 绘制Y与halls箱线图
+boxplot(Y~halls,a,ylab="对数价格",xlab="客厅个数")
+# 绘制Y与floor箱线图
+boxplot(Y~floor,a,ylab="对数价格",xlab="楼层高低",names=c("高","低","中"))
+# 绘制Y与subway箱线图
+boxplot(Y~subway,a,ylab="对数价格",xlab="有无地铁",names=c("无","有"))
+# 绘制Y与school箱线图
+boxplot(Y~school,a,ylab="对数价格",xlab="是否学区房",names=c("否","是"))
+
+
+#------建立全模型A------
+# 建立线性回归模型
+Model.A=lm(Y~district*subway+school+floor+as.factor(bedrooms)+as.factor(halls)+area,data=a)
+# 展示模型的结果细节
+summary(Model.A)
+
+#------建立对照模型B  （省略了客厅数目这个因素）------
+# 去掉变量halls, 建立线性回归模型
+Model.B=lm(Y~district*subway+school+floor+as.factor(bedrooms)+area,data=a)
+# 展示模型的结果细节
+summary(Model.B)
+# 对模型A和模型B做一个对比方差分析，以检验客厅数目这个因素是否重要
+anova(Model.B,Model.A)
+
+
+#------建立没有交互作用的模型C------
+# 去掉交互作用, 建立线性回归模型
+Model.C=lm(Y~district+subway+school+floor+as.factor(bedrooms)+
+             as.factor(halls)+area,data=a)
+#对模型A和模型C做一个对比方差分析, 以检验行政区划与有无地铁的交互是否重要
+anova(Model.C,Model.A)
+# 展示模型的结果细节
+summary(Model.C)
+
+
+#-----对原始数据做了一点随机扰动--------
+#人为地重新生成了卧室数目，完全随机的，同对数房价Y毫无关系; 
+aa=a
+ss=length(a[,1])
+#用这个人为生成的卧室数目替换了原始数据的卧室数目。
+aa$bedrooms=floor(6*runif(ss))
+aa[1:5,]
+
+#对随机扰动后的数据重新建立模型
+Model.S=lm(Y~district*subway+school+floor+as.factor(bedrooms)+as.factor(halls)+area,data=aa)
+# 展示模型的结果细节
+summary(Model.S)
+
+#------模型选择--------------
+#AIC模型选择
+Model.AIC=step(Model.S,trace=F)
+#BIC模型选择
+Model.BIC=step(Model.S,trace=F,k=log(ss))
+# 展示模型的结果细节
+summary(Model.BIC)
+
+
+#------模型应用（二手房价估算器）-------
+#假设场景：假设有一家三口，父母为了能让孩子在西城区上学，想买一套邻近地铁的两室一厅二手房，面积是85平方米，低层楼层，那么房价大约是多少呢？
+# 生成一个待预测的样本
+newdata = data.frame(district = "西城",bedrooms=2,halls=1,area=85,
+                     floor="low",subway=1,school=1)
+# 基于模型A对其价格进行预测，预测得到的单位面积房价为9.50万元/平方米。注意predict函数出来的结果为对数房价，所以需要exp()函数变换一下才是房价
+exp(predict(Model.A,newdata))
+# 预测总价为807.16万元
+exp(predict(Model.A,newdata))*85
+
+
+
+
+```
