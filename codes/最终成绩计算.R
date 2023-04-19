@@ -67,14 +67,17 @@ grades_df = Reduce(function(x, y) merge(x, y, by=c("学号", "姓名")), grades_
 grades_df = merge(grades_df, project_mean, by="所属固定分组")
 
 # 组长说final没干活的
-tangping = c("苏红毅SU Hongyi", "袁媛YUAN Yuan", 
-             "冯敬之", "高兴GAO Xing")
+tangping = c("张三", "李四", "王二", "齐五")
 grades_df[grades_df$姓名 %in% tangping, "project平均分"] = 0
 
 ####################################### 总成绩
 # 平时个人作业(50%)+平时个人测验(30%)+小组期末项目(20%)
 grades_df[, 4:7] = as.numeric(unlist(grades_df[, 4:7]))
-grades_df$总成绩 = grades_df$作业平均分 * 0.5 + grades_df$测试平均分 * 0.3 + grades_df$project平均分 * 0.2 + grades_df$缺勤扣分
+# 注意这里的最后把缺勤扣分去掉了，这个要填在教务给的excel里
+grades_df$总成绩 = grades_df$作业平均分 * 0.5 + grades_df$测试平均分 * 0.3 + grades_df$project平均分 * 0.2 #+ grades_df$缺勤扣分
+# 按照成绩倒序排列，看看有几个A
+grades_df = grades_df[order(grades_df$总成绩, decreasing = T), ]
+grades_df$总成绩 = ceiling(grades_df$总成绩) # 向上取整
 
 # 等级制转化
 a = cut(grades_df$总成绩, 
@@ -85,6 +88,7 @@ grades_df$成绩等级 = cut(grades_df$总成绩,
                          breaks = c(-Inf, 59.5, 62.5, 66.5, 69.5, 72.5, 76.5, 79.5, 84.5, 89.5, 94.5, 96.5, 100),
                          labels = c("F", "D", "D+", "C-", "C", "C+", "B-", "B", "B+", "A-", "A", "A+"))
 par(family = "STKaiti")
+table(grades_df$成绩等级)
 barplot(table(grades_df$成绩等级))
 
 # 检查不及格的同学
@@ -98,7 +102,19 @@ table_grade["A+"] / sum(table_grade) # 0.0
 # 获得A-以上的人数一般不超过总人数的20%
 table_grade
 (table_grade["A+"] + table_grade["A"]) / sum(table_grade)
-# 0.0
+
 
 # 保存成绩
+grades_df = grades_df[order(grades_df$学号), ] # 按照学号排序
 write.csv(grades_df, "../最终成绩加权细分.csv")
+
+# 填写excel表的时候需要这几个比例
+grades_df$label = 0
+grades_df[grades_df$总成绩 >= 85, "label"] = 1
+grades_df[(grades_df$总成绩 >= 70) & (grades_df$总成绩 <= 84), "label"] = 2
+grades_df[(grades_df$总成绩 >= 60) & (grades_df$总成绩 <= 69), "label"] = 3
+grades_df[(grades_df$总成绩 < 60) , "label"] = 4
+table(grades_df$label)
+
+table(grades_df$label) / sum(table(grades_df$label))
+
